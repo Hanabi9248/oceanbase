@@ -1,0 +1,55 @@
+name: Validate clang-cl SVML guard
+on:
+  push:
+    branches: [codex/validate-grant-runtime-v2]
+    paths: [.github/workflows/validate-opencolorio-clang-cl.yml]
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        toolset: [ClangCL, v143]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: AcademySoftwareFoundation/OpenColorIO
+          ref: 5a808fb57a94c7229640a97835c420c9a1fbd1fe
+      - name: Configure real AVX build
+        shell: pwsh
+        run: |
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -T ${{ matrix.toolset }} -DOCIO_BUILD_APPS=OFF -DOCIO_BUILD_PYTHON=OFF -DOCIO_BUILD_DOCS=OFF -DOCIO_BUILD_GPU_TESTS=OFF -DOCIO_BUILD_TESTS=ON -DOCIO_USE_SIMD=ON -DOCIO_USE_AVX=ON -DOCIO_USE_AVX2=OFF -DOCIO_USE_AVX512=OFF -DOCIO_INSTALL_EXT_PACKAGES=ALL
+          if ($LASTEXITCODE -ne 0) { throw 'Configuration failed' }
+      - name: Confirm clang-cl baseline failure
+        if: matrix.toolset == 'ClangCL'
+        shell: pwsh
+        run: |
+          cmake --build build --config Release --target OpenColorIO --parallel 4 *> baseline.log
+          $buildExit = $LASTEXITCODE
+          Get-Content baseline.log -Tail 100
+          if ($buildExit -eq 0) { throw 'Baseline unexpectedly passed' }
+          if (!(Select-String -Path baseline.log -Pattern "undeclared identifier '_mm_pow_ps'" -Quiet)) { throw 'Failure did not reproduce the reported SVML error' }
+      - name: Apply four compiler guards
+        shell: pwsh
+        run: |
+          $sourcePath = 'src/OpenColorIO/ops/fixedfunction/FixedFunctionOpCPU.cpp'
+          $sourceText = [IO.File]::ReadAllText($sourcePath)
+          $guard = '#if (_MSC_VER >= 1920) && (OCIO_USE_AVX)'
+          if (($sourceText.Split($guard).Length - 1) -ne 4) { throw 'Unexpected source gates' }
+          $sourceText = $sourceText.Replace($guard, "$guard && !defined(__clang__)")
+          [IO.File]::WriteAllText($sourcePath, $sourceText, [Text.UTF8Encoding]::new($false))
+          git diff --check
+          if ($LASTEXITCODE -ne 0) { throw 'Invalid patch' }
+      - name: Build patched library and CPU tests
+        shell: pwsh
+        run: |
+          cmake --build build --config Release --target OpenColorIO test_cpu_exec --parallel 4
+          if ($LASTEXITCODE -ne 0) { throw 'Patched build failed' }
+      - name: Run CPU regressions
+        shell: pwsh
+        run: |
+          ctest --test-dir build -C Release -R '^test_cpu' --output-on-failure
+          if ($LASTEXITCODE -ne 0) { throw 'CPU tests failed' }
