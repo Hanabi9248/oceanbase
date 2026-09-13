@@ -1,0 +1,43 @@
+name: Validate GRANT SQL boundaries
+on:
+  push:
+    branches: [codex/validate-grant-runtime]
+permissions:
+  contents: read
+jobs:
+  runtime:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: b7fd8719663c4a2f1e6cdb63252a5d309d317c57
+          path: source
+          persist-credentials: false
+      - name: Build dependencies
+        working-directory: source
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git wget rpm rpm2cpio cpio make build-essential binutils m4 libtool-bin libncurses5
+          bash build.sh init
+      - name: Compile observer
+        working-directory: source
+        run: |
+          export PATH="$PWD/deps/3rd/usr/local/oceanbase/devtools/bin:$PATH"
+          bash build.sh debug -DOB_INCLUDE_UNITTEST=OFF
+          (
+            while true; do
+              date -u
+              free -m
+              ps -eo pid,comm,rss,etime --sort=-rss | head -n 8
+              sleep 60
+            done
+          ) &
+          monitor_pid=$!
+          trap 'kill "$monitor_pid" 2>/dev/null || true' EXIT
+          /usr/bin/time -v cmake --build build_debug --target observer --parallel 4
+      - name: Run isolated SQL regression
+        run: bash validation/oceanbase-run-disposable.sh "$GITHUB_WORKSPACE/source"
