@@ -12,12 +12,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        toolset: [ClangCL, v143]
+        toolset: [ClangCL]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: AcademySoftwareFoundation/OpenColorIO
           ref: 5a808fb57a94c7229640a97835c420c9a1fbd1fe
+      - name: Build zlib dependency with MSVC resource compiler environment
+        shell: pwsh
+        run: |
+          $p = 'share/cmake/modules/install/InstallZLIB.cmake'
+          $s = [IO.File]::ReadAllText($p)
+          $needle = '        GIT_SHALLOW TRUE'
+          if (($s.Split($needle).Length - 1) -ne 1) { throw 'Unexpected zlib configuration' }
+          $s = $s.Replace($needle, "$needle`n        CMAKE_GENERATOR_TOOLSET v143")
+          [IO.File]::WriteAllText($p, $s, [Text.UTF8Encoding]::new($false))
       - name: Configure real AVX build
         shell: pwsh
         run: |
