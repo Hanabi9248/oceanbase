@@ -1,11 +1,12 @@
 """Run against an explicitly prepared disposable MySQL-mode OceanBase tenant.
 
-Not yet executed against observer. Requires a configured mysql/obclient executable;
+The default 32-character checks passed against patched observer. Requires a client;
 credentials, if needed, belong in its defaults file, not command-line arguments.
 """
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import uuid
@@ -18,6 +19,7 @@ def main():
     parser.add_argument("--port", type=int, required=True)
     parser.add_argument("--user", required=True)
     parser.add_argument("--expected-limit", type=int, choices=(32, 64), required=True)
+    parser.add_argument("--compatibility-version")
     args = parser.parse_args()
     command = [args.client]
     if args.defaults_file:
@@ -44,9 +46,22 @@ def main():
         accounts.append(name)
         return name
 
+    previous_version = None
+    if args.compatibility_version:
+        if os.environ.get("GITHUB_ACTIONS") != "true":
+            raise RuntimeError("Compatibility changes require the disposable Actions fixture")
+        if not re.fullmatch(r"\d+\.\d+\.\d+\.\d+", args.compatibility_version):
+            raise ValueError("Expected a four-part compatibility version")
+        previous_version = sql("SELECT @@GLOBAL.ob_compatibility_version").stdout.strip()
+        if not re.fullmatch(r"[0-9.]+", previous_version):
+            raise ValueError("Unexpected existing compatibility version")
     print(json.dumps({"server": sql("SELECT VERSION()").stdout.strip(),
                       "expected_limit": args.expected_limit}))
     try:
+        if previous_version is not None:
+            sql("SET GLOBAL ob_compatibility_version='" + args.compatibility_version + "'")
+            print(json.dumps({"compatibility_version": sql(
+                "SELECT @@GLOBAL.ob_compatibility_version").stdout.strip()}))
         sql("CREATE DATABASE `" + database + "`")
         sql("CREATE TABLE `" + database + "`.t (id INT)")
         # CREATE USER is the independent control for the tenant's active limit.
@@ -72,9 +87,13 @@ def main():
                 print(json.dumps({"scope": scope, "length": length, "result": "PASS"}))
     finally:
         # Names are unique to this invocation; never remove pre-existing accounts.
-        for name in accounts:
-            sql("DROP USER IF EXISTS '" + name + "'")
-        sql("DROP DATABASE IF EXISTS `" + database + "`")
+        try:
+            for name in accounts:
+                sql("DROP USER IF EXISTS '" + name + "'")
+            sql("DROP DATABASE IF EXISTS `" + database + "`")
+        finally:
+            if previous_version is not None:
+                sql("SET GLOBAL ob_compatibility_version='" + previous_version + "'")
 
 
 if __name__ == "__main__":
