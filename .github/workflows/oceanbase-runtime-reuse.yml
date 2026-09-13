@@ -33,7 +33,7 @@ jobs:
           bash build.sh init
           chmod +x build_debug/src/observer/observer
           build_debug/src/observer/observer -V
-          build_debug/src/observer/observer -V | grep -F b7fd8719663c4a2f1e6cdb63252a5d309d317c57
+          build_debug/src/observer/observer -V 2>&1 | grep -F b7fd8719663c4a2f1e6cdb63252a5d309d317c57
           python3 src/share/inner_table/sys_package/syspack_codegen.py -rd "$PWD/build_debug/syspack_release"
       - name: Run with unambiguous isolated filesystem path
         shell: bash
