@@ -45,6 +45,8 @@ jobs:
           old = 'runtime_dir=$(mktemp -d "$GITHUB_WORKSPACE/ob-grant.XXXXXX")'
           assert s.count(old) == 1
           s = s.replace(old, 'runtime_dir=$(sudo mktemp -d /ob-grant.XXXXXX)\nsudo chown "$(id -u):$(id -g)" "$runtime_dir"')
+          assert s.count('--expected-limit 32') == 1
+          s = s.replace('--expected-limit 32', '--expected-limit 64 --compatibility-version 4.3.5.0')
           p.write_text(s)
           config = Path('validation/oceanbase-runtime.yaml.in')
           text = config.read_text()
