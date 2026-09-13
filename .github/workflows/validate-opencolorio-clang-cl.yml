@@ -41,6 +41,8 @@ jobs:
           Get-Content baseline.log -Tail 100
           if ($buildExit -eq 0) { throw 'Baseline unexpectedly passed' }
           if (!(Select-String -Path baseline.log -Pattern "undeclared identifier '_mm_pow_ps'" -Quiet)) { throw 'Failure did not reproduce the reported SVML error' }
+          # The failing native build is expected; do not propagate its exit code.
+          $global:LASTEXITCODE = 0
       - name: Apply four compiler guards
         shell: pwsh
         run: |
