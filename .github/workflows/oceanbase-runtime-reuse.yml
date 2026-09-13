@@ -46,5 +46,9 @@ jobs:
           assert s.count(old) == 1
           s = s.replace(old, 'runtime_dir=$(sudo mktemp -d /ob-grant.XXXXXX)\nsudo chown "$(id -u):$(id -g)" "$runtime_dir"')
           p.write_text(s)
+          config = Path('validation/oceanbase-runtime.yaml.in')
+          text = config.read_text()
+          assert text.count('  global:') == 1
+          config.write_text(text.replace('  global:', '  global:\n    devname: lo'))
           PY
           bash validation/oceanbase-run-disposable.sh "$GITHUB_WORKSPACE/source"

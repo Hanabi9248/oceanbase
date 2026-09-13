@@ -30,7 +30,7 @@ jobs:
       - name: Configure real AVX build
         shell: pwsh
         run: |
-          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -T ${{ matrix.toolset }} -DOCIO_BUILD_APPS=OFF -DOCIO_BUILD_PYTHON=OFF -DOCIO_BUILD_DOCS=OFF -DOCIO_BUILD_GPU_TESTS=OFF -DOCIO_BUILD_TESTS=ON -DOCIO_USE_SIMD=ON -DOCIO_USE_AVX=ON -DOCIO_USE_AVX2=OFF -DOCIO_USE_AVX512=OFF -DOCIO_INSTALL_EXT_PACKAGES=ALL
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -T ${{ matrix.toolset }} -DBUILD_SHARED_LIBS=OFF -DOCIO_BUILD_APPS=OFF -DOCIO_BUILD_PYTHON=OFF -DOCIO_BUILD_DOCS=OFF -DOCIO_BUILD_GPU_TESTS=OFF -DOCIO_BUILD_TESTS=ON -DOCIO_USE_SIMD=ON -DOCIO_USE_AVX=ON -DOCIO_USE_AVX2=OFF -DOCIO_USE_AVX512=OFF -DOCIO_INSTALL_EXT_PACKAGES=ALL
           if ($LASTEXITCODE -ne 0) { throw 'Configuration failed' }
       - name: Confirm clang-cl baseline failure
         if: matrix.toolset == 'ClangCL'
