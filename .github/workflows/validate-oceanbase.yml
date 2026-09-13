@@ -1,0 +1,25 @@
+name: Validate GRANT username limit
+on:
+  push:
+    branches: [codex/validate-grant]
+permissions:
+  contents: read
+jobs:
+  compile:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: efe6fba85418527c9cfab63ef071805d43d67463
+          persist-credentials: false
+      - name: Build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git wget rpm rpm2cpio cpio make build-essential binutils m4 libtool-bin libncurses5
+          bash build.sh init
+      - name: Compile observer
+        run: |
+          export PATH="$PWD/deps/3rd/usr/local/oceanbase/devtools/bin:$PATH"
+          bash build.sh debug
+          cmake --build build_debug --parallel 4
