@@ -1,0 +1,50 @@
+name: Validate GRANT using retained observer
+on:
+  push:
+    branches: [codex/validate-grant-runtime-v2]
+    paths: [.github/workflows/oceanbase-runtime-reuse.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  runtime:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: b7fd8719663c4a2f1e6cdb63252a5d309d317c57
+          path: source
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: observer-b7fd871
+          run-id: 34769325395
+          github-token: ${{ github.token }}
+          path: source/build_debug/src/observer
+      - name: Prepare runtime dependencies and system packages
+        working-directory: source
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git wget rpm rpm2cpio cpio make build-essential binutils m4 libtool-bin libncurses5
+          bash build.sh init
+          chmod +x build_debug/src/observer/observer
+          build_debug/src/observer/observer -V
+          build_debug/src/observer/observer -V | grep -F b7fd8719663c4a2f1e6cdb63252a5d309d317c57
+          python3 src/share/inner_table/sys_package/syspack_codegen.py -rd "$PWD/build_debug/syspack_release"
+      - name: Run with unambiguous isolated filesystem path
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('validation/oceanbase-run-disposable.sh')
+          s = p.read_text()
+          old = 'runtime_dir=$(mktemp -d "$GITHUB_WORKSPACE/ob-grant.XXXXXX")'
+          assert s.count(old) == 1
+          s = s.replace(old, 'runtime_dir=$(sudo mktemp -d /ob-grant.XXXXXX)\nsudo chown "$(id -u):$(id -g)" "$runtime_dir"')
+          p.write_text(s)
+          PY
+          bash validation/oceanbase-run-disposable.sh "$GITHUB_WORKSPACE/source"
