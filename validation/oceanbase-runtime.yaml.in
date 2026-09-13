@@ -1,0 +1,25 @@
+# Draft for a disposable Linux runner, not executed.
+# Based on oceanbase/obdeploy example/mini-local-example.yaml.
+# Replace @HOME_PATH@ with an absolute path under the runner temporary directory.
+# Use the locally built observer mirror, never a released binary for patch tests.
+oceanbase-ce:
+  tag: latest
+  servers:
+    - 127.0.0.1
+  global:
+    home_path: '@HOME_PATH@'
+    mysql_port: 2881
+    rpc_port: 2882
+    obshell_port: 2886
+    zone: zone1
+    cluster_id: 1
+    memory_limit: 6G
+    system_memory: 1G
+    datafile_size: 2G
+    datafile_next: 2G
+    datafile_maxsize: 8G
+    log_disk_size: 14G
+    cpu_count: 4
+    production_mode: false
+    enable_syslog_wf: false
+    max_syslog_file_count: 4
