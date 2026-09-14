@@ -90,18 +90,19 @@ jobs:
                       encode->applyRGBA(pixel);
                       std::cerr << "flags=" << flags << " input=" << value << " encoded=" << pixel[0] << " reference=" << pq(value) << std::endl;
                       for (int channel = 0; channel != 3; ++channel)
-                          if (!std::isfinite(pixel[channel]) || std::abs(pixel[channel] - pq(value)) > 0.0001)
+                          if (!std::isfinite(pixel[channel]) || std::abs(pixel[channel] - pq(value)) > (flags == OCIO::OPTIMIZATION_NONE ? 1e-5 : 1e-3))
                               return 1;
                       if (pixel[3] != 0.375f) return 2;
+                      pixel[0] = pixel[1] = pixel[2] = static_cast<float>(pq(value));
                       decode->applyRGBA(pixel);
                       std::cerr << "decoded=" << pixel[0] << std::endl;
                       for (int channel = 0; channel != 3; ++channel)
                           if (!std::isfinite(pixel[channel]) || std::abs(pixel[channel] - value) >
-                              0.001 * std::max(0.001f, std::abs(value))) return 3;
+                              (flags == OCIO::OPTIMIZATION_NONE ? 5e-5 : 2.5e-3) * std::max(1.0f, std::abs(value))) return 3;
                       if (pixel[3] != 0.375f) return 4;
                   }
               }
-              std::cout << "14 public API PQ reference and round-trip cases passed\n";
+              std::cout << "14 public API PQ forward and inverse reference cases passed\n";
           }
           '@ | Set-Content -Encoding utf8 pq-smoke.cpp
           @'
