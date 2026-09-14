@@ -74,6 +74,7 @@ jobs:
           
           int main()
           {
+              std::cerr << "Entered PQ regression" << std::endl;
               auto config = OCIO::Config::CreateRaw();
               auto transform = OCIO::FixedFunctionTransform::Create(OCIO::FIXED_FUNCTION_LIN_TO_PQ);
               transform->setStyle(OCIO::FIXED_FUNCTION_LIN_TO_PQ);
@@ -87,11 +88,13 @@ jobs:
                   {
                       float pixel[] = {value, value, value, 0.375f};
                       encode->applyRGBA(pixel);
+                      std::cerr << "flags=" << flags << " input=" << value << " encoded=" << pixel[0] << " reference=" << pq(value) << std::endl;
                       for (int channel = 0; channel != 3; ++channel)
                           if (!std::isfinite(pixel[channel]) || std::abs(pixel[channel] - pq(value)) > 0.0001)
                               return 1;
                       if (pixel[3] != 0.375f) return 2;
                       decode->applyRGBA(pixel);
+                      std::cerr << "decoded=" << pixel[0] << std::endl;
                       for (int channel = 0; channel != 3; ++channel)
                           if (!std::isfinite(pixel[channel]) || std::abs(pixel[channel] - value) >
                               0.001 * std::max(0.001f, std::abs(value))) return 3;
@@ -117,5 +120,7 @@ jobs:
       - name: Run PQ reference and round-trip regression
         shell: pwsh
         run: |
+          Write-Host "Starting public API regression"
           & ./build/Release/pq_smoke.exe
+          Write-Host "PQ native exit code: $LASTEXITCODE"
           if ($LASTEXITCODE -ne 0) { throw 'PQ regression failed' }
