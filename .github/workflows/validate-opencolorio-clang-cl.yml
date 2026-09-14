@@ -75,7 +75,7 @@ jobs:
           int main()
           {
               auto config = OCIO::Config::CreateRaw();
-              auto transform = OCIO::FixedFunctionTransform::Create();
+              auto transform = OCIO::FixedFunctionTransform::Create(OCIO::FIXED_FUNCTION_LIN_TO_PQ);
               transform->setStyle(OCIO::FIXED_FUNCTION_LIN_TO_PQ);
               for (const auto flags : {OCIO::OPTIMIZATION_NONE, OCIO::OPTIMIZATION_FAST_LOG_EXP_POW})
               {
